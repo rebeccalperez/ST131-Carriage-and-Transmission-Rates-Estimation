@@ -1,6 +1,6 @@
 data {
-       int<lower=1> K;  					// number of (hidden, if HMM) states
-       //int<lower=1> V;  					// number of observable states (for HMM)
+       int<lower=1> K;  					//number of states 
+      					
        int<lower=0> T1;  					// T: number of samples during time-intervals
        int<lower=0> T2;  					
        int<lower=0> T3;
@@ -34,8 +34,7 @@ data {
        int<lower=1,upper=K>	y9[N9,T9];
        int<lower=1,upper=K>	y10[N10,T10];
       
-       //int<lower=1,upper=K> z1[N1,T1]; 		// hidden state sequences 
-       //int<lower=1,upper=K> z2[N2,T2]; 		// hidden state sequences
+
        int<lower=0> delta_T1[N1];			//vector of time intervals between time points 1&2
        int<lower=0> delta_T2[N2];			//vector of time intervals between time points 2& 3
        int<lower=0> delta_T3[N3];			
@@ -103,16 +102,6 @@ parameters {
  	matrix[K,K]	delta_theta_norm9[N9];
  	matrix[K,K]	delta_theta_norm10[N10];
 
- 	
- 	//COVARIATES
- 	//-------------
- 		// X1: vector of 1's for background prob.
- 		// X2: Exposure to nitrofuran
- 		// X3: Exposure to quinolone
- 		// X4: From Geneva
- 		// X5: from Lodz
- 		// X6: Travel to endemic region
- 		// X7: Antibiotic use in past 12 months
  		
  		
  	for(i in 1:N1){
