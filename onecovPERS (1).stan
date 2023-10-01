@@ -1,6 +1,6 @@
 data {
-       int<lower=1> K;  					// number of (hidden, if HMM) states
-       //int<lower=1> V;  					// number of observable states (for HMM)
+       int<lower=1> K;  					
+       
        int<lower=0> T1;  					// T: number of samples during time-intervals
        int<lower=0> T2;  					
        int<lower=0> T3;
