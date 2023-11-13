@@ -1,0 +1,110 @@
+---
+title: "Hidden Markov Model (with MSM)"
+output: html_document
+date: "2023-11-13"
+---
+
+Obtain estimates for overall sample size (all study participants)  
+```{r}
+load("forHMM.Rdata")
+
+library(msm)
+library(ggplot2)
+
+FPestimates <- as.data.frame(matrix(nrow = 50, ncol = 5, data = NA))
+FPestimates[,1] <- seq(from = 0.95, to = .9999, length.out = 50)
+
+
+for (i in 1:nrow(FPestimates)){
+  hmmrunematloop <- msm(State ~ Day, subject = Subject, data = HMMdata, qmatrix = rbind(c(0.01, 0.01), c(0.01, 0.01)), ematrix = rbind(c(FPestimates[i,1], 1-FPestimates[i,1]), c(0.33, 0.66)), fixedpars = c(3))
+  
+  state2 <- sojourn.msm(hmmrunematloop)[[2,1]]
+  lower<- sojourn.msm(hmmrunematloop)[[2,3]]
+  upper<- sojourn.msm(hmmrunematloop)[[2,4]]
+  savemisc <- as.vector <- ematrix.msm(hmmrunematloop)[[1]] 
+  
+  FPestimates[i,2] <- state2
+  FPestimates[i,3] <- lower 
+  FPestimates[i,4] <- upper
+  FPestimates[i,5] <- savemisc[2,1]
+}
+
+
+colnames(FPestimates) <- c("State1Obs1", "Carriage", "Lower", "Upper", "FalseNeg")
+
+FPestimates$FalsePosRate <- 1- FPestimates$State1Obs1
+
+FPestimates <- as.data.frame(FPestimates)
+FPestimates$FalsePosRate <- as.numeric(FPestimates$FalsePosRate)
+FPestimates$Carriage<- as.numeric(FPestimates$Carriage)
+FPestimates$Lower<- as.numeric(FPestimates$Lower)
+FPestimates$Upper <- as.numeric(FPestimates$Upper)
+FPestimates$State1Obs1 <- as.numeric(FPestimates$State1Obs1)
+FPestimates$FalseNeg <- as.numeric(FPestimates$FalseNeg)
+
+library(extrafont)
+library(extrafontdb)
+library("scales")
+library(ggthemes)
+
+
+p1<- ggplot(FPestimates, aes(x=FalsePosRate, y = Carriage)) + geom_point(aes(x = FalsePosRate, y = Carriage,  color = 'black')) + geom_errorbar(aes(ymin = Lower, ymax = Upper, width = 0.0001), color = 'grey') + coord_cartesian(xlim = c(0, .05)) +  ggtitle("Hidden Markov Model Estimates Using Maximum Likelihood Estimates") + scale_y_continuous(sec.axis = sec_axis(~ . *.001, name = "Estimated False Negative Rate")) + geom_point(aes(x = FalsePosRate, y = FalseNeg*1000, color = 'darkblue', fill = "white")) + theme(legend.position = "none", plot.title = element_text(hjust = 0.5),plot.subtitle = element_text(hjust = 1), plot.caption = element_text(hjust = 0), text =element_text(size=11), panel.background = element_blank()) + xlab("False Positive Rate") + scale_color_discrete((type = c("#0072B2", "#D55E00")), labels = c("Carriage Duration (Days)", "False Negative Rate")) + ylab ("Carriage Duration (Days)")
+
+p1 <- p1 + scale_colour_colorblind()
+p1
+
+###establish range of values 
+
+min(FPestimates$Carriage) 
+max(FPestimates$Carriage) 
+
+
+
+```
+Obtain estimates for "persisters" (ie, subset of participants with at least 2 consecutive samples)
+
+```{r}
+
+HMMpersisters <- HMMdata[HMMdata$PERS == 1,]
+
+FP_PERSestimates <- as.data.frame(matrix(nrow = 50, ncol = 5, data = NA))
+FP_PERSestimates[,1] <- seq(from = 0.95, to = .9999, length.out = 50)
+
+
+for (i in 1:nrow(FP_PERSestimates)){
+  hmmrunematloop <- msm(State ~ Day, subject = Subject, data = HMMpersisters, qmatrix = rbind(c(0.01, 0.01), c(0.01, 0.01)), ematrix = rbind(c(FPestimates[i,1], 1-FPestimates[i,1]), c(0.33, 0.66)), fixedpars = c(3))
+  
+  state2 <- sojourn.msm(hmmrunematloop)[[2,1]]
+  lower<- sojourn.msm(hmmrunematloop)[[2,3]]
+  upper<- sojourn.msm(hmmrunematloop)[[2,4]]
+  savemisc <- as.vector <- ematrix.msm(hmmrunematloop)[[1]] 
+  
+  FP_PERSestimates[i,2] <- state2
+  FP_PERSestimates[i,3] <- lower 
+  FP_PERSestimates[i,4] <- upper
+  FP_PERSestimates[i,5] <- savemisc[2,1]
+}
+
+
+colnames(FP_PERSestimates) <- c("State1Obs1", "Carriage", "Lower", "Upper", "FalseNeg")
+
+FP_PERSestimates$FalsePosRate <- 1- FP_PERSestimates$State1Obs1
+
+FP_PERSestimates <- as.data.frame(FP_PERSestimates)
+FP_PERSestimates$FalsePosRate <- as.numeric(FP_PERSestimates$FalsePosRate)
+FP_PERSestimates$Carriage<- as.numeric(FP_PERSestimates$Carriage)
+FP_PERSestimates$Lower<- as.numeric(FP_PERSestimates$Lower)
+FP_PERSestimates$Upper <- as.numeric(FP_PERSestimates$Upper)
+FP_PERSestimates$State1Obs1 <- as.numeric(FP_PERSestimates$State1Obs1)
+FP_PERSestimates$FalseNeg <- as.numeric(FP_PERSestimates$FalseNeg)
+
+p2<- ggplot(FP_PERSestimates, aes(x=FalsePosRate, y = Carriage)) + geom_point(aes(x = FalsePosRate, y = Carriage,  color = 'black')) + geom_errorbar(aes(ymin = Lower, ymax = Upper, width = 0.0001), color = 'grey') + coord_cartesian(xlim = c(0, .05)) +  ggtitle("Hidden Markov Model Estimates Using Maximum Likelihood Estimates") + scale_y_continuous(sec.axis = sec_axis(~ . *.001, name = "Estimated False Negative Rate")) + geom_point(aes(x = FalsePosRate, y = FalseNeg*1000, color = 'darkblue', fill = "white")) + theme(legend.position = "none", plot.title = element_text(hjust = 0.5),plot.subtitle = element_text(hjust = 1), plot.caption = element_text(hjust = 0), text =element_text(size=11), panel.background = element_blank()) + xlab("False Positive Rate") + scale_color_discrete(labels = c("Carriage Duration (Days)", "False Negative Rate")) + ylab ("Carriage Duration (Days)") + scale_colour_colorblind()
+
+p2
+
+###establish range of values 
+
+min(FP_PERSestimates$Carriage) 
+max(FP_PERSestimates$Carriage) 
+```
+
