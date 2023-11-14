@@ -1,0 +1,241 @@
+---
+title: "Covariate Regression Analyses"
+output: html_document
+date: "2023-11-14"
+---
+
+Setting up data for analysis and subsetting by group (ie, persisters (at least 2 
+consecutive positive samples), coresidents (those who are not persisters but live in the same household as persisters), and non-coresidents (not persisters and do not live in same household as persisters))
+```{r}
+setwd("/Users/rebeccaperez/Downloads")
+load("datafinal.Rdata")
+
+##Subset by subgroup:
+
+persisters <- datafinal[datafinal$PERS == 1,]
+
+pershouses <- unique(persisters$family_code)
+
+pershouse2 <- datafinal[1,]
+  for (q in 1:length(pershouses)){
+    
+    pershouse <- datafinal[datafinal$family_code.x == pershouses[q],]
+    
+    pershouse2 <- rbind(pershouse2, pershouse)
+    
+  }
+
+pershouse2 <- pershouse2[-1,]
+coresidents <- pershouse2[pershouse2$PERS == 0,]
+
+
+noncoresidents <- datafinal
+
+for (i in 1:nrow(datafinal)) {
+  
+for (q in 1:length(pershouses)) { 
+  
+  if (noncoresidents$family_code.x[i] == pershouses[q]){
+    noncoresidents$family_code.y[i] <- NA}
+ 
+}
+}
+
+noncoresidents <- noncoresidents[!is.na(noncoresidents$family_code.y),]
+
+
+datafinal$cores <- 0  ###creating a column to indicate coresident status 
+
+for (i in 1:nrow(datafinal)){
+  
+  for (q in 1:length(pershouses)){
+    
+    if(datafinal$family_code.x[i] == pershouses[q]){
+      
+      datafinal$cores[i] <- 1
+      
+    if(datafinal$PERS[i] == 1){
+      
+      datafinal$cores[i] <-0 
+    }
+    }
+  }
+}
+
+table(datafinal$cores) #check 
+
+
+```
+
+Multivariate analysis and plotting of covariates associated with ST131 positive sample 
+```{r}
+
+covregmodel1.1<- glm(POS~PERS+medicalcond+incontinent+female + veg + hospital + medicaldevices + age + hometime + famsize + cores, data=datafinal)
+
+summary(covregmodel1.1)
+
+coef(summary(covregmodel1.1))
+obj1.1 <- coef(summary(covregmodel1.1))
+
+plotdatameans1.1 <- obj1.1[c(-1),1]
+plotdatasds1.1 <- obj1.1[c(-1),2]
+
+plotdataframe <- matrix(nrow = 11, ncol= 5, data = NA)
+
+
+plotdataframe[,1] <- as.numeric(exp(plotdatameans1.1))
+plotdataframe[,2]<- as.numeric(exp(plotdatameans1.1 - (1.96 *plotdatasds1.1)))
+plotdataframe[,3]<- as.numeric(exp(plotdatameans1.1 + (1.96 *plotdatasds1.1)))
+plotdataframe[,5] <- 1:11
+plotdataframe[,4] <-  c("Persistent Carrier*", "Comorbidity", "Incontinence", "Sex (Female)", "Vegetarian", "Hospital Stay in Past Year", "Medical Devices", "Age", ">30 hours per week spent at home", "Family Size", "Coresident (lives with persistent carrier)" )
+plotdataframe <- as.data.frame(plotdataframe)
+plotdataframe[,1] <- as.numeric(plotdataframe[,1])
+plotdataframe[,2] <- as.numeric(plotdataframe[,2])
+plotdataframe[,3] <- as.numeric(plotdataframe[,3])
+
+colnames(plotdataframe) <- c("OR", "Lower", "Upper", "Covariate", "Index")
+
+library(extrafont)
+
+g1.0 <- ggplot(plotdataframe, aes(x= OR, y = Covariate)) + geom_errorbar(aes(xmin = Lower, xmax = Upper, width = .5), color="black") +  geom_point(aes(x= OR, y = Covariate), size = 1.8) + geom_vline(xintercept = 1, color = "black", linetype = "dashed") + scale_x_continuous(trans = 'log10', breaks = seq(0, 2, .25), labels = as.character(seq(0,2,.25))) + theme(
+  plot.title = element_text(hjust = 0.5),
+  plot.subtitle = element_text(hjust = 1),
+  plot.caption = element_text(hjust = 0), text =element_text(size=11, family = "Arial"), panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_line(color = "grey")) + xlab(label = "Multivariate Odds Ratio") + ylab(label = "")
+
+g1.0
+
+
+
+```
+
+Univariate analysis 
+
+```{r}
+
+univalues <- matrix(data = NA, nrow = 11, ncol = 7)
+
+veg <- glm(POS~veg, data = datafinal, family = "binomial")
+obj <- as.data.frame(coef(summary.glm(veg)))
+
+
+univalues[1,1] <- obj[2,1]
+univalues[1,2] <- obj[2,2]
+
+
+sex <- glm(POS~female, data = datafinal, family = "binomial")
+summary(sex)
+
+obj <- as.data.frame(coef(summary.glm(sex)))
+
+
+univalues[2,1] <- obj[2,1]
+univalues[2,2] <- obj[2,2]
+
+pers <- glm(POS~PERS, data = datafinal, family = "binomial")
+summary(pers)
+obj <- as.data.frame(coef(summary.glm(pers)))
+
+
+univalues[3,1] <- obj[2,1]
+univalues[3,2] <- obj[2,2]
+
+meddevs <- glm(POS~medicaldevices, data = datafinal, family = "binomial")
+summary(meddevs)
+obj <- as.data.frame(coef(summary.glm(meddevs)))
+
+
+univalues[4,1] <- obj[2,1]
+univalues[4,2] <- obj[2,2]
+
+incont <- glm(POS~incontinent, data = datafinal, family = "binomial")
+summary(incont)
+obj <- as.data.frame(coef(summary.glm(incont)))
+
+
+univalues[5,1] <- obj[2,1]
+univalues[5,2] <- obj[2,2]
+
+famsize <- glm(POS~famsize, data = datafinal, family = "binomial")
+summary(famsize)
+obj <- as.data.frame(coef(summary.glm(famsize)))
+
+
+univalues[6,1] <- obj[2,1]
+univalues[6,2] <- obj[2,2]
+
+hosp <- glm(POS~hospital, data = datafinal, family = "binomial")
+summary(hosp)
+obj <- as.data.frame(coef(summary.glm(hosp)))
+
+
+univalues[7,1] <- obj[2,1]
+univalues[7,2] <- obj[2,2]
+
+cores <- glm(POS~cores, data = datafinal, family = "binomial")
+summary(cores)
+obj <- as.data.frame(coef(summary.glm(cores)))
+
+
+univalues[8,1] <- obj[2,1]
+univalues[8,2] <- obj[2,2]
+
+
+comor <- glm(POS~medicalcond, data = datafinal, family = "binomial")
+summary(comor)
+obj <- as.data.frame(coef(summary.glm(comor)))
+
+
+univalues[9,1] <- obj[2,1]
+univalues[9,2] <- obj[2,2]
+
+age <- glm(POS~age, data = datafinal, family = "binomial")
+summary(age)
+obj <- as.data.frame(coef(summary.glm(age)))
+
+
+univalues[10,1] <- obj[2,1]
+univalues[10,2] <- obj[2,2]
+
+home <- glm(POS~hometime, data = datafinal, family = "binomial")
+summary(home)
+obj <- as.data.frame(coef(summary.glm(home)))
+
+
+univalues[11,1] <- obj[2,1]
+univalues[11,2] <- obj[2,2]
+
+
+univalues[,3] <- exp(univalues[,1])
+univalues[,4] <- exp(univalues[,1]-1.96*univalues[,2])
+univalues[,5] <- exp(univalues[,1]+1.96*univalues[,2])
+
+
+univalues <- univalues[,3:6]
+
+colnames(univalues) <- c("OR", "Lower", "Upper", "Index")
+
+
+Covnames <- as.data.frame(c("Vegetarian", "Sex (Female)", "Persistent Carrier*", "Medical Devices", "Incontinence", "Family Size", "Hospital Stay in Past Year", "Coresident (lives with persistent carrier)", "Comorbidity", "Age", ">30 hours per week spent at home"))
+
+colnames(Covnames) <- "Covariate"
+
+univalues <- cbind(univalues, Covnames)
+
+univalues$Index <- seq(1,11, by = 1)
+
+###remove vegetarian bc infinite 
+
+plotunivalues <- univalues
+
+plotunivalues[1,1:3] <- NA
+
+#####plot 
+g1.1 <- ggplot(plotunivalues, aes(x= OR, y = Covariate)) + geom_errorbar(aes(xmin = Lower, xmax = Upper, width = .5), color="black") +  geom_point(aes(x= OR, y = Covariate), size = 1.8) + geom_vline(xintercept = 1, color = "black", linetype = "dashed") + scale_x_continuous(trans = 'log10') + theme(
+  plot.title = element_text(hjust = 0.5),
+  plot.subtitle = element_text(hjust = 1),
+  plot.caption = element_text(hjust = 0), text =element_text(size=11, family = "Arial"), panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_line(color = "grey")) + xlab(label = "Univariate Odds Ratio") + ylab(label = "")
+
+g1.1
+
+```
+
